@@ -7,8 +7,7 @@ const DBConnect = async () => {
             `${process.env.MONGODB_URI}/${DB_NAME}`
         );
         console.log(
-            "databse is always in the other continent still it is connected!! \n",
-            connectionInstance
+            "databse is always in the other continent still it is connected!! \n"
         );
     } catch (error) {
         console.log("Error in connecting db from db/dbConnect \n", error);
