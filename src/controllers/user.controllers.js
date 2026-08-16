@@ -29,7 +29,7 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiErrors(400, "all fields are required");
     }
 
-    const existedUser = User.findOne({
+    const existedUser = await User.findOne({
         $or: [{ email }, { username }],
     });
 
@@ -40,11 +40,27 @@ const registerUser = asyncHandler(async (req, res) => {
         );
     }
 
-    const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
-    if (!avatarLocalPath) {
-        throw ApiErrors(400, "Avatar image is required");
+    let coverImageLocalPath;
+    let avatarLocalPath;
+    if (
+        req.files &&
+        Array.isArray(req.files.coverImage) &&
+        req.files.coverImage.length > 0
+    ) {
+        coverImageLocalPath = req.files.coverImage[0].path;
     }
+    if (
+        req.files &&
+        Array.isArray(req.files.avatar) &&
+        req.files.avatar.length > 0
+    ) {
+        avatarLocalPath = req.files.avatar[0].path;
+    }
+
+    if (!avatarLocalPath) {
+        throw new ApiErrors(400, "Avatar image is required");
+    }
+    console.log(avatarLocalPath, coverImageLocalPath);
 
     const avatar = await uploadOnCloudinary(avatarLocalPath);
     const coverImage = await uploadOnCloudinary(coverImageLocalPath);
@@ -52,7 +68,7 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiErrors(500, "not able to store avatar on clouinary");
     }
 
-    const user = User.create({
+    const user = await User.create({
         username: username.toLowerCase(),
         fullName,
         email,

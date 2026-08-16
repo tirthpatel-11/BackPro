@@ -13,13 +13,22 @@ async function uploadOnCloudinary(fileLocalPath) {
         if (!fileLocalPath) {
             return null;
         }
+        cloudinary.config({
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key: process.env.CLOUDINARY_API_KEY,
+            api_secret: process.env.CLOUDINARY_API_SECRET,
+        });
+        // console.log(process.env.CLOUDINARY_API_KEY);
+        // console.log("Cloudinary API key:", cloudinary.config().api_key);
+        // console.log("Cloudinary API key:", cloudinary.config());
         const response = await cloudinary.uploader.upload(fileLocalPath, {
             resource_type: "auto",
         });
-        fs.unlink(fileLocalPath);
+        fs.unlinkSync(fileLocalPath);
         return response;
     } catch (error) {
-        fs.unlink(fileLocalPath);
+        console.log(error);
+        fs.unlinkSync(fileLocalPath);
         return null;
     }
 }
