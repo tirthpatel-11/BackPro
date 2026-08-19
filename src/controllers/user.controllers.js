@@ -8,6 +8,7 @@ const genAcessAndRefreshToken = async (user) => {
     try {
         const acessToken = user.generateAcessTokens();
         const refreshToken = user.generateRefreshTokens();
+        // console.log(acessToken, refreshToken);
 
         user.refreshTokens = refreshToken;
         await user.save({ validateBeforeSave: false });
@@ -135,6 +136,7 @@ const loginUser = asyncHandler(async (req, res) => {
             "user not found please register before you login"
         );
     }
+    // console.log(user.email, user.password);
 
     const isPassValid = await user.isPassCorrect(password);
     if (!isPassValid) {
@@ -151,6 +153,7 @@ const loginUser = asyncHandler(async (req, res) => {
     const loggedInUser = await User.findById(user._id).select(
         "-password -refreshTokens"
     );
+    // console.log(acessToken, refreshToken);
 
     res.status(200)
         .cookie("acessToken", acessToken, options)
