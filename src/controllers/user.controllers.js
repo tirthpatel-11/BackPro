@@ -2,7 +2,7 @@ import { asyncHandler } from "../utils/asyncHendler.js";
 import { ApiErrors } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { deleteOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
 
 const genAcessAndRefreshToken = async (user) => {
@@ -235,4 +235,156 @@ const refreshAcessTokens = asyncHandler(async (req, res) => {
     }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAcessTokens };
+const changePassword = asyncHandler(async (req, res) => {
+    const { oldPass, newPass } = req.body;
+
+    if (!(oldPass && newPass)) {
+        throw new ApiErrors(
+            400,
+            "current password and new password both required"
+        );
+    }
+
+    const user = await User.findById(req.user._id);
+
+    const isPassValid = await user.isPassCorrect(oldPass);
+
+    if (!isPassValid) {
+        throw new ApiErrors(400, "invalid current password");
+    }
+
+    user.password = newPass;
+
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json(
+        new ApiResponse(200, {}, "Password changed sucessfully")
+    );
+});
+
+const getUser = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id).select(
+        "-password refreshTokens"
+    );
+
+    if (!user) {
+        throw new ApiErrors(404, "user not found");
+    }
+
+    res.status(200).json(new ApiResponse(200, user, "user got sucessfully"));
+});
+
+const updateUser = asyncHandler(async (req, res) => {
+    const { email, fullName } = req.body;
+
+    if (!(email && fullName)) {
+        throw new ApiErrors(400, "email and fullName is required");
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: { email, fullName },
+        },
+        { new: true }
+    ).select("-password -refreshTokens");
+});
+
+const updateAvatarImage = asyncHandler(async (req, res) => {
+    // acess files
+    // check them
+    // upload
+    // update user
+    // delete from local
+    // delete from cloudinary
+
+    const avatarImageLocalPath = req.file.path;
+    if (!avatarImageLocalPath) {
+        throw new ApiErrors(400, "avatar image is required");
+    }
+
+    const user = await User.findById(req.user._id).select(
+        "-password -refreshTokens"
+    );
+
+    if (!user) {
+        throw new ApiErrors(401, "unauthorised request");
+    }
+    const oldAvatar = user.avatar;
+
+    const avatar = await uploadOnCloudinary(avatarImageLocalPath);
+
+    if (!avatar) {
+        throw new ApiErrors(
+            500,
+            "something went wrong while uploading into cloudinary"
+        );
+    }
+
+    user.avatar = avatar.url;
+    await user.save({ validateBeforeSave: false });
+
+    const deleteImageResponse = await deleteOnCloudinary(oldAvatar);
+    if (!deleteImageResponse) {
+        throw new ApiErrors(500, "unable to delete old image");
+    }
+
+    res.status(200).json(
+        new ApiResponse(200, user, "user avatar updated sucessfully")
+    );
+});
+
+const updateCoverImage = asyncHandler(async (req, res) => {
+    // acess files
+    // check them
+    // upload
+    // update user
+    // delete from local
+    // delete from cloudinary
+
+    const coverImageLocalPath = req.file.path;
+    if (!coverImageLocalPath) {
+        throw new ApiErrors(400, "cover image is required");
+    }
+
+    const user = await User.findById(req.user._id).select(
+        "-password -refreshTokens"
+    );
+
+    if (!user) {
+        throw new ApiErrors(401, "unauthorised request");
+    }
+    const oldCover = user.coverImage;
+
+    const cover = await uploadOnCloudinary(coverImageLocalPath);
+
+    if (!cover) {
+        throw new ApiErrors(
+            500,
+            "something went wrong while uploading into cloudinary"
+        );
+    }
+
+    user.coverImage = cover.url;
+    await user.save({ validateBeforeSave: false });
+
+    const deleteImageResponse = await deleteOnCloudinary(oldcover);
+    if (!deleteImageResponse) {
+        throw new ApiErrors(500, "unable to delete old image");
+    }
+
+    res.status(200).json(
+        new ApiResponse(200, user, "user avatar updated sucessfully")
+    );
+});
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshAcessTokens,
+    changePassword,
+    getUser,
+    updateAvatarImage,
+    updateCoverImage,
+};
