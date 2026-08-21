@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
 import { deleteOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 const genAcessAndRefreshToken = async (user) => {
     try {
@@ -385,7 +386,7 @@ const getChannelProfile = asyncHandler(async (req, res) => {
         throw new ApiErrors(400, "username is required");
     }
 
-    const profileDetails = User.aggregate([
+    const profileDetails = await User.aggregate([
         {
             $match: {
                 username,
@@ -418,7 +419,10 @@ const getChannelProfile = asyncHandler(async (req, res) => {
                 isSubscribed: {
                     $cond: {
                         if: {
-                            $in: [req.user._id, "$subscribers.subscriber"],
+                            $in: [
+                                new mongoose.Types.ObjectId(req.user._id),
+                                "$subscribers.subscriber",
+                            ],
                         },
                         then: true,
                         else: false,
@@ -439,6 +443,68 @@ const getChannelProfile = asyncHandler(async (req, res) => {
             },
         },
     ]);
+
+    if (!profileDetails) {
+        throw new ApiErrors(404, "profile does not exist");
+    }
+
+    res.status(200).json(
+        new ApiResponse(200, profileDetails[0], "profile fetched sucessfully")
+    );
+});
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+    const userWithProperWH = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id),
+            },
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        avatar: 1,
+                                        username: 1,
+                                        fullName: 1,
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                    {
+                        $addFields: {
+                            owner: {
+                                $first: "$owner",
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+    ]);
+
+    if (!userWithProperWH) {
+        throw new ApiErrors(404, "watch history not found");
+    }
+
+    res.status(200).json(
+        200,
+        userWithProperWH[0].watchHistory,
+        "watch history fetched sucesfully"
+    );
 });
 
 export {
@@ -448,7 +514,9 @@ export {
     refreshAcessTokens,
     changePassword,
     getUser,
+    updateUser,
     updateAvatarImage,
     updateCoverImage,
     getChannelProfile,
+    getWatchHistory,
 };
