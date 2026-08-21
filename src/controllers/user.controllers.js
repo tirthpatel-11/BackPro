@@ -378,6 +378,69 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     );
 });
 
+const getChannelProfile = asyncHandler(async (req, res) => {
+    const { username } = req.params;
+
+    if (!username) {
+        throw new ApiErrors(400, "username is required");
+    }
+
+    const profileDetails = User.aggregate([
+        {
+            $match: {
+                username,
+            },
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers",
+            },
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribing",
+            },
+        },
+        {
+            $addFields: {
+                subscriberCount: {
+                    $size: "$subscribers",
+                },
+                subscribingCount: {
+                    $size: "$subscribing",
+                },
+                isSubscribed: {
+                    $cond: {
+                        if: {
+                            $in: [req.user._id, "$subscribers.subscriber"],
+                        },
+                        then: true,
+                        else: false,
+                    },
+                },
+            },
+        },
+        {
+            $project: {
+                username: 1,
+                fullName: 1,
+                email: 1,
+                avatar: 1,
+                coverImage: 1,
+                subscriberCount: 1,
+                subscribingCount: 1,
+                isSubscribed: 1,
+            },
+        },
+    ]);
+});
+
 export {
     registerUser,
     loginUser,
@@ -387,4 +450,5 @@ export {
     getUser,
     updateAvatarImage,
     updateCoverImage,
+    getChannelProfile,
 };
